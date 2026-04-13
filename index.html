@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickEat - Dashboard Master 1</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #f0f2f5; transition: background 0.3s; }
+        .card { background: white; padding: 35px; border-radius: 30px; box-shadow: 0 20px 40px rgba(0,0,0,0.12); width: 90%; max-width: 420px; text-align: center; }
+        
+        .classe-tag { background: #1a73e8; color: white; padding: 8px 20px; border-radius: 50px; font-weight: bold; font-size: 1.2em; box-shadow: 0 4px 10px rgba(26, 115, 232, 0.3); }
+        
+        #qrcode-container { 
+            background: white; 
+            padding: 25px; 
+            display: inline-block; 
+            border: 2px solid #eee; 
+            border-radius: 20px;
+            margin: 30px 0;
+        }
+
+        .counter-box { 
+            background: #fff3e0; 
+            padding: 25px; 
+            border-radius: 20px; 
+            border: 2px solid #ffcc80;
+            position: relative;
+        }
+        .count-number { font-size: 5em; font-weight: 900; color: #e65100; line-height: 1; }
+        .count-label { color: #8d6e63; font-weight: bold; text-transform: uppercase; font-size: 0.9em; letter-spacing: 2px; margin-top: 10px; }
+
+        .status-dot { height: 10px; width: 10px; background-color: #28a745; border-radius: 50%; display: inline-block; margin-right: 5px; animation: blink 1.5s infinite; }
+        @keyframes blink { 0% { opacity: 0.2; } 50% { opacity: 1; } 100% { opacity: 0.2; } }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div style="margin-bottom: 25px;">
+        <span class="classe-tag">MASTER 1</span>
+    </div>
+
+    <div id="qrcode-container">
+        <div id="qrcode"></div>
+    </div>
+
+    <div class="counter-box">
+        <div class="count-number" id="stock-display">40</div>
+        <div class="count-label">Repas Restants</div>
+    </div>
+
+    <p style="margin-top: 20px; color: #666; font-size: 0.9em;">
+        <span class="status-dot"></span> Mise à jour en temps réel
+    </p>
+</div>
+
+<script>
+    const STOCK_MAX = 40;
+    // On simule la récupération du stock actuel (depuis localStorage ou API)
+    let stockPrecedent = parseInt(localStorage.getItem('quickeat_live_stock')) ?? STOCK_MAX;
+
+    // 1. Initialisation du QR Code
+    const qrcode = new QRCode(document.getElementById("qrcode"), {
+        text: "https://votre-api.com/repas/valider?classe=m1", 
+        width: 220,
+        height: 220,
+        colorDark : "#2c3e50",
+        colorLight : "#ffffff"
+    });
+
+    // 2. Fonction de mise à jour du compteur
+    function rafraichirCompteur() {
+        // Ici, normalement vous feriez : const response = await fetch('/api/stock-actuel');
+        // Pour la démo, on simule une décrémentation aléatoire ou via un événement
+        let stockActuel = parseInt(localStorage.getItem('quickeat_live_stock')) ?? STOCK_MAX;
+
+        const display = document.getElementById('stock-display');
+        
+        // Si le stock a changé, on fait une petite animation
+        if (stockActuel !== stockPrecedent) {
+            flashEcran();
+            stockPrecedent = stockActuel;
+        }
+
+        display.innerText = stockActuel;
+
+        // Alertes visuelles
+        if (stockActuel <= 5) display.style.color = "#d32f2f";
+        if (stockActuel <= 0) {
+            document.getElementById('qrcode-container').style.filter = "grayscale(1) opacity(0.3)";
+            display.innerText = "0";
+        }
+    }
+
+    function flashEcran() {
+        document.body.style.background = "#c8e6c9";
+        setTimeout(() => { document.body.style.background = "#f0f2f5"; }, 500);
+    }
+
+    // 3. Boucle de rafraîchissement (toutes les 2 secondes)
+    setInterval(rafraichirCompteur, 2000);
+
+    // Initialisation au chargement
+    rafraichirCompteur();
+
+    // --- POUR VOS TESTS ---
+    // Vous pouvez taper cette commande dans la console du navigateur pour simuler un scan réussi :
+    // localStorage.setItem('quickeat_live_stock', 39);
+</script>
+
+</body>
+</html>
