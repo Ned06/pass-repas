@@ -3,110 +3,129 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QuickEat - Dashboard Master 1</title>
+    <title>QuickEat Master - Système Complet</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #f0f2f5; transition: background 0.3s; }
-        .card { background: white; padding: 35px; border-radius: 30px; box-shadow: 0 20px 40px rgba(0,0,0,0.12); width: 90%; max-width: 420px; text-align: center; }
+        :root { --primary: #1a73e8; --success: #28a745; --bg: #f0f2f5; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; transition: 0.3s; }
+        .card { background: white; padding: 30px; border-radius: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); width: 90%; max-width: 400px; text-align: center; }
         
-        .classe-tag { background: #1a73e8; color: white; padding: 8px 20px; border-radius: 50px; font-weight: bold; font-size: 1.2em; box-shadow: 0 4px 10px rgba(26, 115, 232, 0.3); }
-        
-        #qrcode-container { 
-            background: white; 
-            padding: 25px; 
-            display: inline-block; 
-            border: 2px solid #eee; 
-            border-radius: 20px;
-            margin: 30px 0;
-        }
+        /* DASHBOARD STYLES */
+        .classe-tag { background: var(--primary); color: white; padding: 8px 20px; border-radius: 50px; font-weight: bold; }
+        #qrcode-container { background: white; padding: 20px; display: inline-block; border-radius: 15px; border: 2px solid #eee; margin: 20px 0; }
+        .counter-box { background: #fff3e0; padding: 20px; border-radius: 20px; border: 2px solid #ffcc80; }
+        .count-number { font-size: 4em; font-weight: 900; color: #e65100; }
 
-        .counter-box { 
-            background: #fff3e0; 
-            padding: 25px; 
-            border-radius: 20px; 
-            border: 2px solid #ffcc80;
-            position: relative;
-        }
-        .count-number { font-size: 5em; font-weight: 900; color: #e65100; line-height: 1; }
-        .count-label { color: #8d6e63; font-weight: bold; text-transform: uppercase; font-size: 0.9em; letter-spacing: 2px; margin-top: 10px; }
-
-        .status-dot { height: 10px; width: 10px; background-color: #28a745; border-radius: 50%; display: inline-block; margin-right: 5px; animation: blink 1.5s infinite; }
-        @keyframes blink { 0% { opacity: 0.2; } 50% { opacity: 1; } 100% { opacity: 0.2; } }
+        /* FORM STYLES */
+        input, select, button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 10px; border: 1px solid #ccc; font-size: 16px; box-sizing: border-box; }
+        button { background: var(--success); color: white; border: none; font-weight: bold; cursor: pointer; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <div style="margin-bottom: 25px;">
-        <span class="classe-tag">MASTER 1</span>
-    </div>
-
+<div id="section-admin" class="card">
+    <span class="classe-tag">MASTER 1 - DASHBOARD</span>
     <div id="qrcode-container">
         <div id="qrcode"></div>
     </div>
-
     <div class="counter-box">
         <div class="count-number" id="stock-display">40</div>
         <div class="count-label">Repas Restants</div>
     </div>
+    <button onclick="ouvrirFormulaire()" style="background: #6c757d; margin-top: 15px;">Simuler un Scan (Mode Client)</button>
+    <button onclick="resetStock()" style="background: #dc3545; font-size: 10px; padding: 5px;">Réinitialiser Stock</button>
+</div>
 
-    <p style="margin-top: 20px; color: #666; font-size: 0.9em;">
-        <span class="status-dot"></span> Mise à jour en temps réel
-    </p>
+<div id="section-client" class="card hidden">
+    <h2>🍽️ QuickEat</h2>
+    <input type="text" id="fullname" placeholder="Votre Nom et Prénoms">
+    <select id="category">
+        <option value="Élève">Élève</option>
+        <option value="Enseignant">Enseignant</option>
+        <option value="Personnel">Personnel</option>
+    </select>
+    <button onclick="validerRepas()">CONFIRMER MON REPAS</button>
+    <p id="msg-thanks" class="hidden" style="color: var(--success); font-weight: bold;"></p>
 </div>
 
 <script>
     const STOCK_MAX = 40;
-    // On simule la récupération du stock actuel (depuis localStorage ou API)
-    let stockPrecedent = parseInt(localStorage.getItem('quickeat_live_stock')) ?? STOCK_MAX;
+    let stockLocal = parseInt(localStorage.getItem('quickeat_live_stock'));
 
-    // 1. Initialisation du QR Code
-    const qrcode = new QRCode(document.getElementById("qrcode"), {
-        text: "https://votre-api.com/repas/valider?classe=m1", 
-        width: 220,
-        height: 220,
-        colorDark : "#2c3e50",
-        colorLight : "#ffffff"
-    });
-
-    // 2. Fonction de mise à jour du compteur
-    function rafraichirCompteur() {
-        // Ici, normalement vous feriez : const response = await fetch('/api/stock-actuel');
-        // Pour la démo, on simule une décrémentation aléatoire ou via un événement
-        let stockActuel = parseInt(localStorage.getItem('quickeat_live_stock')) ?? STOCK_MAX;
-
-        const display = document.getElementById('stock-display');
-        
-        // Si le stock a changé, on fait une petite animation
-        if (stockActuel !== stockPrecedent) {
-            flashEcran();
-            stockPrecedent = stockActuel;
-        }
-
-        display.innerText = stockActuel;
-
-        // Alertes visuelles
-        if (stockActuel <= 5) display.style.color = "#d32f2f";
-        if (stockActuel <= 0) {
-            document.getElementById('qrcode-container').style.filter = "grayscale(1) opacity(0.3)";
-            display.innerText = "0";
-        }
+    // Initialisation du stock si vide
+    if (isNaN(stockLocal)) {
+        localStorage.setItem('quickeat_live_stock', STOCK_MAX);
+        stockLocal = STOCK_MAX;
     }
 
+    // --- LOGIQUE DASHBOARD ---
+    const qrcode = new QRCode(document.getElementById("qrcode"), {
+        text: window.location.href, // Le QR pointe vers ce même fichier
+        width: 200, height: 200
+    });
+
+    function rafraichirDashboard() {
+        const stock = parseInt(localStorage.getItem('quickeat_live_stock'));
+        const display = document.getElementById('stock-display');
+        
+        if (display.innerText != stock) {
+            flashEcran();
+            display.innerText = stock;
+        }
+
+        if (stock <= 5) display.style.color = "red";
+        if (stock <= 0) document.getElementById('qrcode').style.opacity = "0.2";
+    }
+
+    // --- LOGIQUE CLIENT ---
+    function ouvrirFormulaire() {
+        document.getElementById('section-admin').classList.add('hidden');
+        document.getElementById('section-client').classList.remove('hidden');
+    }
+
+    function validerRepas() {
+        const nom = document.getElementById('fullname').value;
+        const cat = document.getElementById('category').value;
+        let stock = parseInt(localStorage.getItem('quickeat_live_stock'));
+
+        if (nom === "") return alert("Nom requis");
+        if (stock <= 0) return alert("Plus de repas disponibles !");
+
+        // DÉCRÉMENTATION
+        stock--;
+        localStorage.setItem('quickeat_live_stock', stock);
+
+        // Sauvegarde historique (JSON simulé)
+        let historique = JSON.parse(localStorage.getItem('historique_repas') || "[]");
+        historique.push({ nom, cat, date: new Date().toLocaleString() });
+        localStorage.setItem('historique_repas', JSON.stringify(historique));
+
+        // Feedback
+        document.getElementById('fullname').classList.add('hidden');
+        document.getElementById('category').classList.add('hidden');
+        document.querySelector('#section-client button').classList.add('hidden');
+        const thanks = document.getElementById('msg-thanks');
+        thanks.innerText = "Merci " + nom + ", bon appétit !";
+        thanks.classList.remove('hidden');
+
+        setTimeout(() => { location.reload(); }, 3000);
+    }
+
+    // --- OUTILS ---
     function flashEcran() {
         document.body.style.background = "#c8e6c9";
         setTimeout(() => { document.body.style.background = "#f0f2f5"; }, 500);
     }
 
-    // 3. Boucle de rafraîchissement (toutes les 2 secondes)
-    setInterval(rafraichirCompteur, 2000);
+    function resetStock() {
+        localStorage.setItem('quickeat_live_stock', STOCK_MAX);
+        location.reload();
+    }
 
-    // Initialisation au chargement
-    rafraichirCompteur();
-
-    // --- POUR VOS TESTS ---
-    // Vous pouvez taper cette commande dans la console du navigateur pour simuler un scan réussi :
-    // localStorage.setItem('quickeat_live_stock', 39);
+    // Boucle de surveillance
+    setInterval(rafraichirDashboard, 1000);
+    rafraichirDashboard();
 </script>
 
 </body>
