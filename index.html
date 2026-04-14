@@ -1,131 +1,286 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QuickEat Master - Système Complet</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <style>
-        :root { --primary: #1a73e8; --success: #28a745; --bg: #f0f2f5; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; transition: 0.3s; }
-        .card { background: white; padding: 30px; border-radius: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); width: 90%; max-width: 400px; text-align: center; }
-        
-        /* DASHBOARD STYLES */
-        .classe-tag { background: var(--primary); color: white; padding: 8px 20px; border-radius: 50px; font-weight: bold; }
-        #qrcode-container { background: white; padding: 20px; display: inline-block; border-radius: 15px; border: 2px solid #eee; margin: 20px 0; }
-        .counter-box { background: #fff3e0; padding: 20px; border-radius: 20px; border: 2px solid #ffcc80; }
-        .count-number { font-size: 4em; font-weight: 900; color: #e65100; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pass Repas - Gestion en Temps Réel</title>
 
-        /* FORM STYLES */
-        input, select, button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 10px; border: 1px solid #ccc; font-size: 16px; box-sizing: border-box; }
-        button { background: var(--success); color: white; border: none; font-weight: bold; cursor: pointer; }
-        .hidden { display: none; }
-    </style>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<style>
+.glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+.tab-content { display: none; }
+.active { display: block; }
+</style>
 </head>
-<body>
 
-<div id="section-admin" class="card">
-    <span class="classe-tag">MASTER 1 - DASHBOARD</span>
-    <div id="qrcode-container">
-        <div id="qrcode"></div>
-    </div>
-    <div class="counter-box">
-        <div class="count-number" id="stock-display">40</div>
-        <div class="count-label">Repas Restants</div>
-    </div>
-    <button onclick="ouvrirFormulaire()" style="background: #6c757d; margin-top: 15px;">Simuler un Scan (Mode Client)</button>
-    <button onclick="resetStock()" style="background: #dc3545; font-size: 10px; padding: 5px;">Réinitialiser Stock</button>
+<body class="bg-gray-100 min-h-screen font-sans">
+
+<nav class="bg-white shadow-sm p-4 flex justify-between items-center">
+<h1 class="text-xl font-bold text-orange-600">🍴 Pass Repas</h1>
+<button onclick="toggleAdmin()" class="text-gray-400 hover:text-orange-500 text-xs">Accès Admin</button>
+</nav>
+
+<!-- CLIENT -->
+<section id="client-view" class="tab-content active p-6 max-w-md mx-auto">
+<div class="glass p-8 rounded-3xl shadow-xl text-center border border-orange-100">
+
+<h2 class="text-2xl font-bold mb-6">Réserver mon repas</h2>
+
+<select id="class-selector" class="w-full p-4 border rounded-xl mb-6"></select>
+
+<button onclick="validateMeal()" class="w-full bg-orange-500 text-white py-5 rounded-xl text-xl font-bold">
+VALIDER MON REPAS
+</button>
+
+<p id="status-msg" class="mt-4"></p>
+
+</div>
+</section>
+
+<!-- ADMIN -->
+<section id="admin-view" class="tab-content p-6 max-w-6xl mx-auto">
+
+<h2 class="text-3xl font-bold mb-6">Dashboard Admin</h2>
+
+<button onclick="exportToPDF()" class="bg-blue-600 text-white px-4 py-2 mb-6 rounded">
+Exporter
+</button>
+
+<div id="charts-container" class="grid md:grid-cols-3 gap-6 mb-10"></div>
+
+<div class="bg-white p-4 rounded mb-6">
+<input id="new-class-name" placeholder="Nom classe" class="border p-2">
+<input id="new-class-stock" type="number" placeholder="Stock" class="border p-2">
+<button onclick="addClass()" class="bg-green-600 text-white px-4 py-2">Ajouter</button>
 </div>
 
-<div id="section-client" class="card hidden">
-    <h2>🍽️ QuickEat</h2>
-    <input type="text" id="fullname" placeholder="Votre Nom et Prénoms">
-    <select id="category">
-        <option value="Élève">Élève</option>
-        <option value="Enseignant">Enseignant</option>
-        <option value="Personnel">Personnel</option>
-    </select>
-    <button onclick="validerRepas()">CONFIRMER MON REPAS</button>
-    <p id="msg-thanks" class="hidden" style="color: var(--success); font-weight: bold;"></p>
+<table class="w-full bg-white rounded shadow">
+<thead>
+<tr>
+<th class="p-3">Classe</th>
+<th class="p-3">Pris</th>
+<th class="p-3">Restant</th>
+<th class="p-3">Action</th>
+</tr>
+</thead>
+<tbody id="admin-table-body"></tbody>
+</table>
+
+<div class="mt-8 text-center">
+<h3 class="font-bold mb-3">QR Code</h3>
+<div id="qrcode"></div>
+<button onclick="downloadQR()" class="text-orange-600 underline mt-3">
+Télécharger PDF
+</button>
 </div>
+
+</section>
 
 <script>
-    const STOCK_MAX = 40;
-    let stockLocal = parseInt(localStorage.getItem('quickeat_live_stock'));
 
-    // Initialisation du stock si vide
-    if (isNaN(stockLocal)) {
-        localStorage.setItem('quickeat_live_stock', STOCK_MAX);
-        stockLocal = STOCK_MAX;
-    }
+// ================= DATA =================
+let db = {
+classes: {
+"th1": { name: "Théologie 1", stock: 50, pris: 12 },
+"ph1": { name: "Philosophie 1", stock: 60, pris: 10 }
+}
+};
 
-    // --- LOGIQUE DASHBOARD ---
-    const qrcode = new QRCode(document.getElementById("qrcode"), {
-        text: window.location.href, // Le QR pointe vers ce même fichier
-        width: 200, height: 200
-    });
+let charts = {};
 
-    function rafraichirDashboard() {
-        const stock = parseInt(localStorage.getItem('quickeat_live_stock'));
-        const display = document.getElementById('stock-display');
-        
-        if (display.innerText != stock) {
-            flashEcran();
-            display.innerText = stock;
-        }
+// ================= INIT =================
+function init(){
+renderClientView();
+renderAdminView();
+generateQR();
+}
 
-        if (stock <= 5) display.style.color = "red";
-        if (stock <= 0) document.getElementById('qrcode').style.opacity = "0.2";
-    }
+// ================= CLIENT =================
+function renderClientView(){
+const select = document.getElementById('class-selector');
+select.innerHTML = "";
 
-    // --- LOGIQUE CLIENT ---
-    function ouvrirFormulaire() {
-        document.getElementById('section-admin').classList.add('hidden');
-        document.getElementById('section-client').classList.remove('hidden');
-    }
+for(let id in db.classes){
+select.innerHTML += `<option value="${id}">${db.classes[id].name}</option>`;
+}
+}
 
-    function validerRepas() {
-        const nom = document.getElementById('fullname').value;
-        const cat = document.getElementById('category').value;
-        let stock = parseInt(localStorage.getItem('quickeat_live_stock'));
+function validateMeal(){
 
-        if (nom === "") return alert("Nom requis");
-        if (stock <= 0) return alert("Plus de repas disponibles !");
+const id = document.getElementById('class-selector').value;
+const name = db.classes[id].name;
+const msg = document.getElementById('status-msg');
 
-        // DÉCRÉMENTATION
-        stock--;
-        localStorage.setItem('quickeat_live_stock', stock);
+Swal.fire({
+title: "Confirmer ?",
+text: name,
+icon: "question",
+showCancelButton: true,
+confirmButtonColor: "#f97316"
+}).then(result => {
 
-        // Sauvegarde historique (JSON simulé)
-        let historique = JSON.parse(localStorage.getItem('historique_repas') || "[]");
-        historique.push({ nom, cat, date: new Date().toLocaleString() });
-        localStorage.setItem('historique_repas', JSON.stringify(historique));
+if(!result.isConfirmed) return;
 
-        // Feedback
-        document.getElementById('fullname').classList.add('hidden');
-        document.getElementById('category').classList.add('hidden');
-        document.querySelector('#section-client button').classList.add('hidden');
-        const thanks = document.getElementById('msg-thanks');
-        thanks.innerText = "Merci " + nom + ", bon appétit !";
-        thanks.classList.remove('hidden');
+const today = new Date().toISOString().slice(0,10);
 
-        setTimeout(() => { location.reload(); }, 3000);
-    }
+if(localStorage.getItem("scan") === today){
+msg.innerText = "❌ Déjà utilisé aujourd'hui";
+msg.className = "text-red-600";
+return;
+}
 
-    // --- OUTILS ---
-    function flashEcran() {
-        document.body.style.background = "#c8e6c9";
-        setTimeout(() => { document.body.style.background = "#f0f2f5"; }, 500);
-    }
+if(db.classes[id].pris < db.classes[id].stock){
+db.classes[id].pris++;
+localStorage.setItem("scan", today);
 
-    function resetStock() {
-        localStorage.setItem('quickeat_live_stock', STOCK_MAX);
-        location.reload();
-    }
+msg.innerText = "✅ Bon appétit !";
+msg.className = "text-green-600";
 
-    // Boucle de surveillance
-    setInterval(rafraichirDashboard, 1000);
-    rafraichirDashboard();
+renderAdminView();
+}else{
+msg.innerText = "⚠️ Stock épuisé";
+msg.className = "text-orange-600";
+}
+
+});
+
+}
+
+// ================= ADMIN =================
+function toggleAdmin(){
+const code = prompt("Code admin :");
+
+if(code === atob("YWRtaW5AQA==")){
+document.getElementById('client-view').classList.remove('active');
+document.getElementById('admin-view').classList.add('active');
+}else{
+alert("Accès refusé");
+}
+}
+
+function renderAdminView(){
+
+const tbody = document.getElementById('admin-table-body');
+const chartsDiv = document.getElementById('charts-container');
+
+tbody.innerHTML = "";
+chartsDiv.innerHTML = "";
+
+for(let id in db.classes){
+
+let c = db.classes[id];
+let rest = c.stock - c.pris;
+
+tbody.innerHTML += `
+<tr>
+<td class="p-3">${c.name}</td>
+<td class="p-3 text-orange-600">${c.pris}</td>
+<td class="p-3">${rest}</td>
+<td class="p-3">
+<button onclick="deleteClass('${id}')" class="text-red-500">Supprimer</button>
+</td>
+</tr>
+`;
+
+chartsDiv.innerHTML += `
+<div class="bg-white p-4 rounded">
+<canvas id="chart-${id}"></canvas>
+</div>
+`;
+
+}
+
+setTimeout(()=>{
+for(let id in db.classes){
+createChart(id);
+}
+},100);
+
+}
+
+function createChart(id){
+const c = db.classes[id];
+const ctx = document.getElementById(`chart-${id}`);
+
+if(charts[id]) charts[id].destroy();
+
+charts[id] = new Chart(ctx,{
+type:'doughnut',
+data:{
+labels:['Pris','Restant'],
+datasets:[{
+data:[c.pris, c.stock - c.pris],
+backgroundColor:['#f97316','#e5e7eb']
+}]
+},
+options:{plugins:{legend:{display:false}}}
+});
+}
+
+function addClass(){
+let name = document.getElementById('new-class-name').value;
+let stock = parseInt(document.getElementById('new-class-stock').value);
+
+if(name && stock){
+let id = name.replace(/\s/g,'').toLowerCase();
+db.classes[id] = {name, stock, pris:0};
+
+renderClientView();
+renderAdminView();
+}
+}
+
+function deleteClass(id){
+if(confirm("Supprimer ?")){
+delete db.classes[id];
+renderClientView();
+renderAdminView();
+}
+}
+
+// ================= QR =================
+function generateQR(){
+new QRCode(document.getElementById("qrcode"), {
+text: window.location.href,
+width: 128,
+height: 128,
+colorDark: "#f97316"
+});
+}
+
+function downloadQR(){
+
+const { jsPDF } = window.jspdf;
+const img = document.querySelector("#qrcode img");
+
+const pdf = new jsPDF();
+
+pdf.setFontSize(18);
+pdf.text("PASS REPAS", 105, 20, null, null, "center");
+
+pdf.setFontSize(12);
+pdf.text("Système de gestion des repas", 105, 30, null, null, "center");
+
+pdf.addImage(img.src, 'PNG', 70, 40, 70, 70);
+
+pdf.text(new Date().toLocaleDateString(), 105, 120, null, null, "center");
+
+pdf.save("QR-Pass-Repas.pdf");
+
+}
+
+function exportToPDF(){
+window.print();
+}
+
+// ================= START =================
+window.onload = init;
+
 </script>
 
 </body>
